@@ -1,0 +1,1 @@
+D:\Other Projects\GenAi\GenAi\GenAi.csproj;x86
