@@ -1,24 +1,16 @@
 ﻿using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
-using System.IO;
-using System.Linq;
 using System.Net.Http;
-using System.Runtime.InteropServices.WindowsRuntime;
 using System.Text;
 using System.Threading.Tasks;
-using System.Xml.Linq;
-using Windows.Foundation;
-using Windows.Foundation.Collections;
+using Windows.Storage.Pickers;
+using Windows.Storage.Streams;
+using Windows.Storage;
 using Windows.UI.Xaml;
 using Windows.UI.Xaml.Controls;
-using Windows.UI.Xaml.Controls.Primitives;
-using Windows.UI.Xaml.Data;
-using Windows.UI.Xaml.Documents;
-using Windows.UI.Xaml.Input;
-using Windows.UI.Xaml.Media;
-using Windows.UI.Xaml.Navigation;
+using System.IO;
+using Windows.UI.Xaml.Media.Imaging;
 
 // The Blank Page item template is documented at https://go.microsoft.com/fwlink/?LinkId=402352&clcid=0x409
 
@@ -29,62 +21,171 @@ namespace GenAi
     /// </summary>
     public sealed partial class MainPage : Page
     {
-        private readonly string apiKey = "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"; // Replace with your API key
-        private readonly string endpoint = "https://api-inference.huggingface.co/models/google/flan-t5-large";
+        private const string apiKey = "AIzaSyCxATOqKYc7pAYO8Zx4gylesJ9487R0zdI"; // Replace with your API key
+        private const string endpoint = "https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=" + apiKey;
+        private string base64Content { get; set; } = null;
+        private string type { get; set; }
 
         public MainPage()
         {
             this.InitializeComponent();
         }
 
-        private async void AskAI_Click(object sender, RoutedEventArgs e)
-        {
-            string userInput = UserInput.Text;
-            if (!string.IsNullOrWhiteSpace(userInput))
-            {
-                //AIResponse.Text = "Thinking...";
-                AIResponse.Text += "-> " + userInput + ": " + '\n';
-                string aiReply = await GetAIResponse(userInput);
-                AIResponse.Text += aiReply;
-            }
-        }
-
         private void Clear_Click(object sender, RoutedEventArgs e)
         {
             AIResponse.Text = "";
+            SelectedImage.Source = null;
+        }
+        
+        private async void SelectImage_Click(object sender, RoutedEventArgs e)
+        {
+            await PickImage();
+            if (base64Content != null)
+            {
+                AIResponse.Text = "Image selected!";
+                type = "image/png";
+            }
+            else
+            {
+                AIResponse.Text = "No image selected.";
+            }
         }
 
-
-        private async Task<string> GetAIResponse(string prompt)
+        private async void SelectAudio_Click(object sender, RoutedEventArgs e)
         {
-            using (HttpClient client = new HttpClient())
+            base64Content = await ConvertAudioToBase64();
+            if (base64Content != null)
             {
-                client.DefaultRequestHeaders.Add("Authorization", $"Bearer {apiKey}");
+                AIResponse.Text = "Audio selected!";
+                type = "audio/wav";
+            }
+            else
+            {
+                AIResponse.Text = "No audio selected.";
+            }
+        }
 
-                var requestData = new { inputs = prompt };
-                var content = new StringContent(JsonConvert.SerializeObject(requestData), Encoding.UTF8, "application/json");
+        private async void AskAI_Click(object sender, RoutedEventArgs e)
+        {
+            string userInput = UserInput.Text;
+            if (string.IsNullOrWhiteSpace(userInput))
+            {
+                AIResponse.Text = "Please enter a question.";
+                return;
+            }
 
+            AIResponse.Text = "Thinking...";
+            string response = await GetAIResponse(userInput, base64Content);
+            AIResponse.Text = response;
+        }
 
-                HttpResponseMessage response = await client.PostAsync(endpoint, content);
-
-                if (response.IsSuccessStatusCode)
+        public async Task<string> GetAIResponse(string userInput, string base64Content)
+        {
+            try
+            {
+                using (HttpClient client = new HttpClient())
                 {
-                    string result = await response.Content.ReadAsStringAsync();
-                    //dynamic jsonResponse = JsonConvert.DeserializeObject(result);
-                    var myObject = JsonConvert.DeserializeObject<List<Root>>(result);
-                    //string res = jsonResponse.First.First.Value.Value.ToString();
-                    string res = "";
-
-                    foreach(Root obj in myObject)
+                    var requestBody = new
                     {
-                        res += obj.generated_text;
-                        res += '\n';
+                        contents = new[]
+                        {
+                        new
+                        {
+                            parts = new object[]
+                            {
+                                new { text = userInput },
+                                new
+                                {
+                                    inlineData = new
+                                    {
+                                        mimeType = type, 
+                                        data = base64Content
+                                    }
+                                }
+                            }
+                        }
                     }
-                    return res;
+                    };
+
+                    string json = JsonConvert.SerializeObject(requestBody);
+                    HttpContent content = new StringContent(json, Encoding.UTF8, "application/json");
+
+                    HttpResponseMessage response = await client.PostAsync(endpoint, content);
+                    string responseString = await response.Content.ReadAsStringAsync();
+
+                    dynamic result = JsonConvert.DeserializeObject(responseString);
+                    return result?.candidates[0]?.content?.parts[0]?.text ?? "No response from AI";
                 }
-                else
+            }
+            catch (Exception ex)
+            {
+                return "Error: " + ex.Message;
+            }
+        }
+
+        private async Task PickImage()
+        {
+            FileOpenPicker picker = new FileOpenPicker
+            {
+                ViewMode = PickerViewMode.Thumbnail,
+                SuggestedStartLocation = PickerLocationId.PicturesLibrary
+            };
+            picker.FileTypeFilter.Add(".jpg");
+            picker.FileTypeFilter.Add(".png");
+
+            StorageFile file = await picker.PickSingleFileAsync();
+            if (file == null)
+            {
+                AIResponse.Text = "No image selected.";
+                return;
+            }
+
+            using (IRandomAccessStream fileStream = await file.OpenAsync(FileAccessMode.Read))
+            {
+                BitmapImage bitmapImage = new BitmapImage();
+                await bitmapImage.SetSourceAsync(fileStream);
+                SelectedImage.Source = bitmapImage;
+            }
+
+            base64Content = await ConvertImageToBase64(file);
+            AIResponse.Text = "Image selected!";
+        }
+
+        private async Task<string> ConvertImageToBase64(StorageFile file)
+        {
+            using (IRandomAccessStream stream = await file.OpenAsync(FileAccessMode.Read))
+            {
+                using (MemoryStream memoryStream = new MemoryStream())
                 {
-                    return "Error: Could not retrieve response.";
+                    await stream.AsStreamForRead().CopyToAsync(memoryStream);
+                    byte[] bytes = memoryStream.ToArray();
+                    return Convert.ToBase64String(bytes);
+                }
+            }
+        }
+
+        public static async Task<string> ConvertAudioToBase64()
+        {
+            FileOpenPicker picker = new FileOpenPicker
+            {
+                ViewMode = PickerViewMode.Thumbnail,
+                SuggestedStartLocation = PickerLocationId.MusicLibrary
+            };
+            picker.FileTypeFilter.Add(".wav");
+            picker.FileTypeFilter.Add(".mp3");
+            picker.FileTypeFilter.Add(".m4a");
+
+            StorageFile file = await picker.PickSingleFileAsync();
+            if (file == null) return null;
+
+            using (IRandomAccessStream stream = await file.OpenAsync(FileAccessMode.Read))
+            {
+                using (DataReader reader = new DataReader(stream))
+                {
+                    byte[] bytes = new byte[stream.Size];
+                    await reader.LoadAsync((uint)stream.Size);
+                    reader.ReadBytes(bytes);
+                    return Convert.ToBase64String(bytes);
                 }
             }
         }

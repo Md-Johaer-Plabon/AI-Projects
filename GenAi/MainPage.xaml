@@ -9,11 +9,18 @@
     Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
 
     <Grid Padding="20">
-        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Width="500">
-            <TextBox x:Name="UserInput" PlaceholderText="Ask your question..." AcceptsReturn="True" Height="100"/>
-            <Button Content="Ask AI" Click="AskAI_Click" Margin="0,10,0,0"/>
-            <Button Content="Clear" Click="Clear_Click" Margin="0,10,0,0"/>
-            <TextBlock x:Name="AIResponse" TextWrapping="Wrap" Margin="0,10,0,0"/>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="Auto"/>
+            <ColumnDefinition Width="Auto"/>
+        </Grid.ColumnDefinitions>
+        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Padding="20" Spacing="20">
+            <TextBox x:Name="UserInput" PlaceholderText="Enter your prompt" Width="300" HorizontalContentAlignment="Left" HorizontalAlignment="Left"/>
+            <Button Content="Select Image" Click="SelectImage_Click"/>
+            <Button Content="Select Audio" Click="SelectAudio_Click"/>
+            <Button Content="Ask AI" Click="AskAI_Click"/>
+            <Button Content="Clear" Click="Clear_Click"/>
+            <TextBlock x:Name="AIResponse" TextWrapping="Wrap" Width="300"/>
         </StackPanel>
+        <Image x:Name="SelectedImage" Grid.Column="1" Width="400" Height="400" Stretch="Uniform"/>
     </Grid>
 </Page>
