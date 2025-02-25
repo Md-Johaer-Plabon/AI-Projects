@@ -1,15 +1,12 @@
-﻿using Newtonsoft.Json;
+﻿using GenAi.Response;
 using System;
-using System.Collections.Generic;
-using System.Net.Http;
-using System.Text;
+using System.IO;
 using System.Threading.Tasks;
+using Windows.Storage;
 using Windows.Storage.Pickers;
 using Windows.Storage.Streams;
-using Windows.Storage;
 using Windows.UI.Xaml;
 using Windows.UI.Xaml.Controls;
-using System.IO;
 using Windows.UI.Xaml.Media.Imaging;
 
 // The Blank Page item template is documented at https://go.microsoft.com/fwlink/?LinkId=402352&clcid=0x409
@@ -21,10 +18,8 @@ namespace GenAi
     /// </summary>
     public sealed partial class MainPage : Page
     {
-        private const string apiKey = "AIzaSyCxATOqKYc7pAYO8Zx4gylesJ9487R0zdI"; // Replace with your API key
-        private const string endpoint = "https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=" + apiKey;
-        private string base64Content { get; set; } = null;
-        private string type { get; set; }
+        private string base64Content { get; set; }
+        private static string type { get; set; }
 
         public MainPage()
         {
@@ -68,59 +63,17 @@ namespace GenAi
         private async void AskAI_Click(object sender, RoutedEventArgs e)
         {
             string userInput = UserInput.Text;
-            if (string.IsNullOrWhiteSpace(userInput))
+            if (string.IsNullOrEmpty(userInput))
             {
                 AIResponse.Text = "Please enter a question.";
                 return;
             }
 
             AIResponse.Text = "Thinking...";
-            string response = await GetAIResponse(userInput, base64Content);
+            string response = await AiResponseManager.GetAIResponse(userInput, base64Content, type);
+            
             AIResponse.Text = response;
-        }
-
-        public async Task<string> GetAIResponse(string userInput, string base64Content)
-        {
-            try
-            {
-                using (HttpClient client = new HttpClient())
-                {
-                    var requestBody = new
-                    {
-                        contents = new[]
-                        {
-                        new
-                        {
-                            parts = new object[]
-                            {
-                                new { text = userInput },
-                                new
-                                {
-                                    inlineData = new
-                                    {
-                                        mimeType = type, 
-                                        data = base64Content
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    };
-
-                    string json = JsonConvert.SerializeObject(requestBody);
-                    HttpContent content = new StringContent(json, Encoding.UTF8, "application/json");
-
-                    HttpResponseMessage response = await client.PostAsync(endpoint, content);
-                    string responseString = await response.Content.ReadAsStringAsync();
-
-                    dynamic result = JsonConvert.DeserializeObject(responseString);
-                    return result?.candidates[0]?.content?.parts[0]?.text ?? "No response from AI";
-                }
-            }
-            catch (Exception ex)
-            {
-                return "Error: " + ex.Message;
-            }
+            base64Content = string.Empty;
         }
 
         private async Task PickImage()
@@ -189,11 +142,5 @@ namespace GenAi
                 }
             }
         }
-
-        public class Root
-        {
-            public string generated_text { get; set; }
-        }
-
     }
 }

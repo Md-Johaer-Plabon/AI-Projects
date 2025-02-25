@@ -19,8 +19,12 @@
             <Button Content="Select Audio" Click="SelectAudio_Click"/>
             <Button Content="Ask AI" Click="AskAI_Click"/>
             <Button Content="Clear" Click="Clear_Click"/>
-            <TextBlock x:Name="AIResponse" TextWrapping="Wrap" Width="300"/>
+            <Border BorderBrush="Black" BorderThickness="1" Padding="0">
+                <Image x:Name="SelectedImage" Stretch="UniformToFill" Width="300" Height="200"/>
+            </Border>
+            
+            
         </StackPanel>
-        <Image x:Name="SelectedImage" Grid.Column="1" Width="400" Height="400" Stretch="Uniform"/>
+        <TextBox x:Name="AIResponse" Grid.Column="1" TextWrapping="Wrap" Width="500" Height="500" Background="AliceBlue"/>
     </Grid>
 </Page>
