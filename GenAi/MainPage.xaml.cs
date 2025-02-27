@@ -73,7 +73,6 @@ namespace GenAi
             string response = await AiResponseManager.GetAIResponse(userInput, base64Content, type);
             
             AIResponse.Text = response;
-            base64Content = string.Empty;
         }
 
         private async Task PickImage()
